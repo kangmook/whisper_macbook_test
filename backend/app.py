@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
@@ -16,13 +17,17 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env", override=False)
+
 DATA_DIR = BASE_DIR / "data"
 MEETINGS_DIR = DATA_DIR / "meetings"
 DB_PATH = DATA_DIR / "app.db"
 STATIC_DIR = BASE_DIR / "static"
 
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "gemma4:e2b"
+OLLAMA_API_URL = os.getenv(
+    "OLLAMA_API_URL", "http://localhost:11434/api/generate"
+).strip()
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:e2b").strip()
 WHISPER_MODEL_PATH = os.getenv("WHISPER_MODEL_PATH", "").strip()
 
 _transcriber: WhisperModel | None = None
