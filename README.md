@@ -29,10 +29,13 @@ Whisper는 서버가 자동 다운로드하지 않고, 로컬 경로만 사용�
 예시로 `faster-whisper-small` 모델을 미리 내려받아 둡니다.
 
 ```bash
+pip install "huggingface_hub[cli]"
 mkdir -p models
-# 아래는 예시: 원하는 방식으로 모델을 로컬에 미리 준비하세요.
-# 결과적으로 models/faster-whisper-small 경로가 존재해야 합니다.
+huggingface-cli download Systran/faster-whisper-small \
+  --local-dir ./models/faster-whisper-small
 ```
+
+다운로드가 완료되면 `models/faster-whisper-small` 경로에 모델 파일(`model.bin` 등)이 있어야 합니다.
 
 ## 설치
 
