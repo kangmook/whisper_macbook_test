@@ -36,6 +36,10 @@ class MeetingUpdateRequest(BaseModel):
     title: str
 
 
+class TranscriptUpsertRequest(BaseModel):
+    transcript: str
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -292,6 +296,18 @@ def transcribe_meeting(meeting_id: str) -> JSONResponse:
     except Exception as exc:  # pragma: no cover - runtime dependency section
         update_meeting(meeting_id, status="failed")
         raise HTTPException(status_code=500, detail=f"전사 실패: {exc}") from exc
+
+
+@app.post("/api/meetings/{meeting_id}/transcript")
+def upsert_transcript(meeting_id: str, payload: TranscriptUpsertRequest) -> JSONResponse:
+    _ = get_meeting_or_404(meeting_id)
+    transcript = payload.transcript.strip()
+    if not transcript:
+        raise HTTPException(status_code=400, detail="전사 텍스트는 비워둘 수 없습니다.")
+    transcript_path = meeting_dir(meeting_id) / "transcript.txt"
+    transcript_path.write_text(transcript, encoding="utf-8")
+    update_meeting(meeting_id, transcript=transcript, status="transcribed")
+    return JSONResponse(get_meeting_or_404(meeting_id))
 
 
 @app.post("/api/meetings/{meeting_id}/summarize")

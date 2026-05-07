@@ -24,6 +24,8 @@ const el = {
   recordingTimer: document.querySelector("#recording-timer"),
   summarizeBtn: document.querySelector("#summarize-btn"),
   downloadMdBtn: document.querySelector("#download-md-btn"),
+  transcriptInput: document.querySelector("#transcript-input"),
+  saveTranscriptBtn: document.querySelector("#save-transcript-btn"),
   overlay: document.querySelector("#processing-overlay"),
   overlayMessage: document.querySelector("#overlay-message"),
 };
@@ -257,6 +259,7 @@ function updateControls() {
   const recording = isRecording();
   const hasTranscript = Boolean(meeting?.transcript?.trim());
   const hasSummary = Boolean(meeting?.summary?.trim());
+  const hasTranscriptInput = Boolean(el.transcriptInput.value.trim());
 
   el.recordStartBtn.disabled = !hasMeeting || recording || state.processingLock;
   el.recordStopBtn.disabled = !hasMeeting || !recording || state.processingLock;
@@ -266,6 +269,9 @@ function updateControls() {
   el.saveTitleBtn.disabled = !hasMeeting || state.processingLock || recording;
   el.deleteMeetingBtn.disabled = !hasMeeting || state.processingLock || recording;
   el.meetingTitleInput.disabled = !hasMeeting || state.processingLock || recording;
+  el.transcriptInput.disabled = !hasMeeting || state.processingLock || recording;
+  el.saveTranscriptBtn.disabled =
+    !hasMeeting || !hasTranscriptInput || state.processingLock || recording;
 }
 
 function setProcessingLock(active, message) {
@@ -322,7 +328,9 @@ function renderSelectedMeeting() {
   if (!meeting) {
     el.meetingTitle.textContent = "👀 회의를 선택해 주세요";
     el.meetingStatus.textContent = "-";
+    el.meetingStatus.removeAttribute("data-status");
     el.meetingTitleInput.value = "";
+    el.transcriptInput.value = "";
     el.transcriptOutput.textContent = "아직 선택된 회의가 없어요.\n왼쪽에서 회의를 고르거나 새 회의를 만들어보세요 🎧";
     el.summaryOutput.innerHTML = markdownToHtml(
       "전사가 완료되면 AI가 요약을 예쁘게 정리해드릴게요 ✨"
@@ -332,9 +340,12 @@ function renderSelectedMeeting() {
   }
   el.meetingTitle.textContent = `📌 ${meeting.title}`;
   el.meetingStatus.textContent = formatStatusChip(meeting.status);
+  el.meetingStatus.dataset.status = meeting.status || "";
   el.meetingTitleInput.value = meeting.title || "";
+  el.transcriptInput.value = meeting.transcript || "";
   el.transcriptOutput.textContent =
-    meeting.transcript || "아직 전사 결과가 없어요.\n녹음을 마친 뒤 잠깐만 기다려 주세요 📝";
+    meeting.transcript ||
+    "아직 전사 결과가 없어요.\n녹음을 진행하거나 위 입력란에 텍스트를 붙여넣어 저장해 주세요 📝";
   el.summaryOutput.innerHTML = markdownToHtml(
     meeting.summary || "아직 요약 결과가 없어요.\n`🤖 AI 정리` 버튼을 눌러 요약을 생성해보세요."
   );
@@ -476,6 +487,17 @@ async function summarizeMeeting(meetingId) {
   }
 }
 
+async function saveTranscriptText(meetingId, transcript) {
+  const updated = await request(`/api/meetings/${meetingId}/transcript`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transcript }),
+  });
+  state.meetings = state.meetings.map((meeting) => (meeting.id === meetingId ? updated : meeting));
+  renderSelectedMeeting();
+  renderMeetingList();
+}
+
 async function downloadMarkdown(meetingId) {
   const blob = await request(`/api/meetings/${meetingId}/markdown`);
   const url = URL.createObjectURL(blob);
@@ -538,6 +560,24 @@ function bindEvents() {
       await saveMeetingTitle(state.selectedMeetingId, title);
     } catch (error) {
       showError(error);
+    }
+  });
+
+  el.transcriptInput.addEventListener("input", () => {
+    updateControls();
+  });
+
+  el.saveTranscriptBtn.addEventListener("click", async () => {
+    try {
+      if (!state.selectedMeetingId) throw new Error("회의를 먼저 선택하세요.");
+      const transcript = el.transcriptInput.value.trim();
+      if (!transcript) throw new Error("전사 텍스트는 비워둘 수 없습니다.");
+      setProcessingLock(true, "📝 전사 텍스트를 저장하고 있습니다. 잠시만 기다려 주세요.");
+      await saveTranscriptText(state.selectedMeetingId, transcript);
+    } catch (error) {
+      showError(error);
+    } finally {
+      setProcessingLock(false);
     }
   });
 
