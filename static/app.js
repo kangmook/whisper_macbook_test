@@ -53,6 +53,17 @@ async function request(url, options = {}) {
   return response.blob();
 }
 
+/** Windows 등에서 쓸 수 없는 문자를 제거·치환한 다운로드용 파일명 basename(.md 제외) */
+function sanitizeMeetingTitleForFilename(title, meetingId) {
+  let base = (title || "").trim();
+  base = base.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_");
+  base = base.replace(/[.\s\u3000]+$/g, "").trim();
+  if (!base) base = `meeting-${meetingId}`;
+  const max = 120;
+  if (base.length > max) base = base.slice(0, max).trim();
+  return base;
+}
+
 function escapeHtml(text) {
   return text
     .replaceAll("&", "&amp;")
@@ -499,11 +510,14 @@ async function saveTranscriptText(meetingId, transcript) {
 }
 
 async function downloadMarkdown(meetingId) {
+  const meeting = state.meetings.find((m) => m.id === meetingId);
+  const titleSource = meeting?.title ?? el.meetingTitleInput?.value ?? "";
+  const basename = sanitizeMeetingTitleForFilename(titleSource, meetingId);
   const blob = await request(`/api/meetings/${meetingId}/markdown`);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `meeting-${meetingId}.md`;
+  anchor.download = `${basename}.md`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();

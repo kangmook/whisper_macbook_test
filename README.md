@@ -75,7 +75,7 @@ export WHISPER_MODEL_PATH="$(pwd)/models/faster-whisper-small"
 ## 실행
 
 ```bash
-uvicorn backend.app:app --reload --port 8000
+uvicorn backend.app:app --reload --port 8000 --reload
 ```
 
 브라우저에서 `http://localhost:8000` 접속.
